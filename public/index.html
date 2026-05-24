@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Simple Project</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eaeaea;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; color: #ffca28; margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: #8892b0; margin-bottom: 2rem; font-size: 0.9rem; }
+        
+        .card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            border: 1px solid #4a5568;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            margin-bottom: 0.75rem;
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #ffca28; color: #1a1a2e; }
+        .btn-danger { background: #ff4757; color: #fff; }
+        .btn-google { background: #4285f4; color: white; }
+        button:hover { transform: translateY(-2px); }
+        
+        .hidden { display: none !important; }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .avatar {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: #ffca28;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1a1a2e;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .data-item {
+            background: rgba(255,255,255,0.05);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert.success { background: rgba(0,255,136,0.1); border: 1px solid #00ff88; color: #00ff88; }
+        .alert.error { background: rgba(255,71,87,0.1); border: 1px solid #ff4757; color: #ff4757; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Firebase Simple Project</h1>
+        <p class="subtitle">Auth + Firestore Demo</p>
+        
+        <!-- Auth Section -->
+        <div class="card" id="authCard">
+            <div id="loginForm">
+                <h3 style="color: #ffca28; margin-bottom: 1rem;">Login / Sign Up</h3>
+                <input type="email" id="email" placeholder="Email">
+                <input type="password" id="password" placeholder="Password">
+                <button class="btn-primary" onclick="login()">Login</button>
+                <button class="btn-primary" onclick="signup()" style="margin-left: 0.5rem;">Sign Up</button>
+                <hr style="margin: 1rem 0; border-color: #4a5568;">
+                <button class="btn-google" onclick="googleLogin()">Sign in with Google</button>
+            </div>
+            
+            <div id="userPanel" class="hidden">
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">U</div>
+                    <div>
+                        <div id="userEmail" style="font-weight: bold;"></div>
+                        <div style="font-size: 0.8rem; color: #8892b0;">Logged in</div>
+                    </div>
+                </div>
+                <button class="btn-danger" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Data Section -->
+        <div class="card hidden" id="dataCard">
+            <h3 style="color: #ffca28; margin-bottom: 1rem;">📝 Add Data to Firestore</h3>
+            <div id="alertBox" class="alert"></div>
+            <input type="text" id="itemName" placeholder="Enter item name">
+            <input type="text" id="itemValue" placeholder="Enter value">
+            <button class="btn-primary" onclick="addData()">Add to Firestore</button>
+        </div>
+
+        <!-- Show Data -->
+        <div class="card hidden" id="listCard">
+            <h3 style="color: #ffca28; margin-bottom: 1rem;">📋 Your Data</h3>
+            <div id="dataList">No data yet</div>
+        </div>
+    </div>
+
+    <script>
+        // 🔥 FIREBASE CONFIG - Replace with your own!
+        // 🔥 FIREBASE CONFIG - Your actual config
+    const firebaseConfig = {
+    apiKey: "AIzaSyBWSSpiGfQdpFbznYV4G72W5pj-TZIV4yM",
+    authDomain: "fire--vault-demo-261004.firebaseapp.com",
+    projectId: "fire--vault-demo-261004",
+    storageBucket: "fire--vault-demo-261004.firebasestorage.app",
+    messagingSenderId: "494452565152",
+    appId: "1:494452565152:web:856156f2dfe40aa45b55c5"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Auth State Listener
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('userPanel').classList.remove('hidden');
+                document.getElementById('dataCard').classList.remove('hidden');
+                document.getElementById('listCard').classList.remove('hidden');
+                document.getElementById('userEmail').textContent = user.email;
+                document.getElementById('userAvatar').textContent = user.email[0].toUpperCase();
+                loadData();
+            } else {
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('userPanel').classList.add('hidden');
+                document.getElementById('dataCard').classList.add('hidden');
+                document.getElementById('listCard').classList.add('hidden');
+            }
+        });
+
+        // Show Alert
+        function showAlert(msg, type) {
+            const box = document.getElementById('alertBox');
+            box.textContent = msg;
+            box.className = `alert ${type} show`;
+            setTimeout(() => box.classList.remove('show'), 3000);
+        }
+
+        // Login
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                showAlert('✅ Logged in!', 'success');
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+        }
+
+        // Sign Up
+        async function signup() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+                showAlert('✅ Account created!', 'success');
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+        }
+
+        // Google Login
+        async function googleLogin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                await auth.signInWithPopup(provider);
+                showAlert('✅ Google login successful!', 'success');
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+        }
+
+        // Logout
+        async function logout() {
+            await auth.signOut();
+        }
+
+        // Add Data to Firestore
+        async function addData() {
+            const name = document.getElementById('itemName').value;
+            const value = document.getElementById('itemValue').value;
+            const user = auth.currentUser;
+            
+            if (!name || !value) {
+                showAlert('Please fill all fields', 'error');
+                return;
+            }
+
+            try {
+                await db.collection('users').doc(user.uid).collection('items').add({
+                    name: name,
+                    value: value,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showAlert('✅ Data added!', 'success');
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemValue').value = '';
+                loadData();
+            } catch (err) {
+                showAlert('❌ ' + err.message, 'error');
+            }
+        }
+
+        // Load Data from Firestore
+        async function loadData() {
+            const user = auth.currentUser;
+            const list = document.getElementById('dataList');
+            
+            try {
+                const snapshot = await db.collection('users').doc(user.uid)
+                    .collection('items').orderBy('createdAt', 'desc').get();
+                
+                if (snapshot.empty) {
+                    list.innerHTML = '<p style="color: #8892b0;">No data yet</p>';
+                    return;
+                }
+                
+                list.innerHTML = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <div class="data-item">
+                            <span><strong>${data.name}</strong></span>
+                            <span style="color: #8892b0;">${data.value}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                list.innerHTML = 'Error loading data';
+            }
+        }
+    </script>
+</body>
+</html>
